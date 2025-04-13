@@ -6,7 +6,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "typeRoots": ["./node_modules/@types", "./types"],
+    "types": ["node", "express"]
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]

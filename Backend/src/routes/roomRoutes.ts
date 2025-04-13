@@ -2,6 +2,7 @@ import express from "express";
 import { Room } from "../models/room";
 import Message from "../models/message";
 import VideoState from "../models/videoState";
+import User from "../models/user";
 
 const router = express.Router();
 
@@ -16,33 +17,33 @@ router.post("/create", async (req, res) => {
   }
 });
 
-router.post("/join", async (req, res) => {
-  try {
-    const { roomId, userId } = req.body;
-    const room = await Room.findById(roomId);
-    if (!room) return res.status(404).json({ error: "Room not found" });
+// router.post("/join", async (req, res) => {
+//   try {
+//     const { roomId, userId } = req.body;
+//     const room = await Room.findById(roomId);
+//     if (!room) return res.status(404).json({ error: "Room not found" });
 
-    if (!room.users.includes(userId)) {
-      room.users.push(userId);
-      await room.save();
-    }
+//     if (!room.users.includes(userId)) {
+//       room.users.push(userId);
+//       await room.save();
+//     }
 
-    res.json(room);
-  } catch (error) {
-    res.status(500).json({ error: "Error joining room" });
-  }
-});
+//     res.json(room);
+//   } catch (error) {
+//     res.status(500).json({ error: "Error joining room" });
+//   }
+// });
 
-router.get("/:roomId", async (req, res) => {
-  try {
-    const room = await Room.findById(req.params.roomId).populate("users");
-    if (!room) return res.status(404).json({ error: "Room not found" });
+// router.get("/:roomId", async (req, res) => {
+//   try {
+//     const room = await Room.findById(req.params.roomId).populate("users");
+//     if (!room) return res.status(404).json({ error: "Room not found" });
 
-    res.json(room);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching room" });
-  }
-});
+//     res.json(room);
+//   } catch (error) {
+//     res.status(500).json({ error: "Error fetching room" });
+//   }
+// });
 
 router.get("/", async (_req, res) => {
   try {
@@ -53,17 +54,17 @@ router.get("/", async (_req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
-  try {
-    const room = await Room.findByIdAndDelete(req.params.id);
-    if (!room) {
-      return res.status(404).json({ error: "Room not found" });
-    }
-    res.status(200).json({ message: "Room deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete room" });
-  }
-})
+// router.delete("/:id", async (req, res) => {
+//   try {
+//     const room = await Room.findByIdAndDelete(req.params.id);
+//     if (!room) {
+//       return res.status(404).json({ error: "Room not found" });
+//     }
+//     res.status(200).json({ message: "Room deleted successfully" });
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to delete room" });
+//   }
+// })
 
 // GET chat messages for a room
 router.get("/:id/messages", async (req, res) => {
@@ -101,4 +102,5 @@ router.post("/:id/video-state", async (req, res) => {
 });
 
 
-export default router;
+
+  export default router;

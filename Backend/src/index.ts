@@ -5,6 +5,8 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import roomRoutes from "./routes/roomRoutes";
+import authRoutes from "./routes/authRoutes";
+import userRoutes from "./routes/userRoutes"
 
 // Load environment variables
 dotenv.config();
@@ -37,6 +39,8 @@ mongoose
 
 // API Routes
 app.use("/api/rooms", roomRoutes);
+app.use("/auth", authRoutes);
+app.use('/user', userRoutes);
 
 // Root route
 app.get("/", (_req, res) => {
