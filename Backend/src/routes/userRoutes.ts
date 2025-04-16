@@ -1,26 +1,37 @@
 import express from 'express';
 import User from '../models/user';
+import { protect } from '../middleware/authmiddleware';
+import asyncHandler from '../utils/asyncHandler';
 
 const router = express.Router();
 
-// Get user profile
-router.get('/profile', async (req, res) => {
+router.get('/profile', protect, asyncHandler(async (req, res) => {
   try {
-    const user = await User.findById(req.user.id); // Assuming req.user contains authenticated user data
+    const user = await User.findById(req.userId).select("-password"); 
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch profile" });
   }
-});
+}));
 
-// Update user profile
-router.put('/profile', async (req, res) => {
-  try {
-    const updatedUser = await User.findByIdAndUpdate(req.user.id, req.body, { new: true });
+router.put(
+  '/profile',
+  protect,
+  asyncHandler(async (req, res) => {
+    const updatedUser = await User.findByIdAndUpdate(req.userId, req.body, {
+      new: true,
+    }).select('-password');
+
+    if (!updatedUser) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
     res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update profile" });
-  }
-});
+  })
+);
 
 export default router;

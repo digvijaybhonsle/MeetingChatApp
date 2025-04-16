@@ -40,7 +40,6 @@ const io = new Server(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(errorHandler);
 // app.use(cors(corsOptions));
 
 // MongoDB connection
@@ -55,10 +54,17 @@ mongoose
 
 // Routes
 app.use("/api/rooms", protect , roomRoutes);
-app.use("/auth", authRoutes);
-app.use("/user", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/video-state", videoStateRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
+app.use(errorHandler);
 
 // Data Structures to track real-time state
 const roomUsers = new Map<string, Set<string>>();  // Tracks users in rooms

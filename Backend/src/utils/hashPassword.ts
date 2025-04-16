@@ -1,12 +1,16 @@
-// util/hashPassword.ts
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
-// Hash the password using bcrypt with a salt rounds value of 10
 const hashPassword = async (password: string): Promise<string> => {
+  if (!password || typeof password !== "string") {
+    throw new Error("Invalid password input");
+  }
+
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    return hashedPassword;
+    const saltRounds = 10;
+    const hashed = await bcrypt.hash(password.trim(), saltRounds);
+    return hashed;
   } catch (error) {
+    console.error("Hashing error:", error);
     throw new Error("Password hashing failed");
   }
 };

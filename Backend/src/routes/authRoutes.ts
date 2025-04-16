@@ -1,73 +1,97 @@
-import express from "express";
-import bcrypt from "bcrypt";
-import User from "../models/user";  
+import { Router } from "express";
+import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
-import hashPassword from "../utils/hashpassword";  
+import User from "../models/user";
 import generateToken from "../utils/generateToken";
-import handleError from "../utils/errorHandler";  
+import asyncHandler from "../utils/asyncHandler";
 
-dotenv.config();  
+dotenv.config();
 
-const router = express.Router();
+const router = Router();
 
-// Sign Up Route
-router.post("/signup", async (req, res) => {
-  const { username, email, password } = req.body;
-  
-  try {
+// ✅ Signup Route
+router.post(
+  "/signup",
+  asyncHandler(async (req, res) => {
+    const { username, email, password } = req.body;
+
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    // Hash password
-    const hashedPassword = await hashPassword(password);
+    // Directly save the user — password will be hashed by Mongoose middleware
+    const newUser = new User({
+      username: username.trim(),
+      email: email.toLowerCase().trim(),
+      password: password.trim(),
+    });
 
-    // Create new user
-    const newUser = new User({ username, email, password: hashedPassword });
-
-    // Save the new user to the database
     await newUser.save();
-    res.status(201).json({ message: "User created successfully" });
-  } catch (error) {
-    handleError(res, "Failed to create user", 500);
-  }
-});
 
-// Sign In Route
-router.post("/signin", async (req, res) => {
-  const { email, password } = req.body;
-  
-  try {
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    res.status(201).json({
+      message: "User created successfully",
+      user: {
+        _id: newUser._id,
+        username: newUser.username,
+        email: newUser.email,
+      },
+    });
+  })
+);
 
-    // Compare the password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) return res.status(401).json({ error: "Invalid credentials" });
+// ✅ Signin Route
+router.post(
+  "/signin",
+  asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
 
-    // Generate JWT token
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+
+    const user = await User.findOne({ email: trimmedEmail });
+    if (!user) {
+      return res.status(404).json({ error: "No account found with this email." });
+    }
+
+    const isMatch = await bcrypt.compare(trimmedPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
     const token = generateToken(user._id.toString());
-    
-    // Set token in a cookie
-    res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" }); // Set cookie with HttpOnly flag
 
-    res.status(200).json({ message: "Login successful", token });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to sign in" });
-  }
-});
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
-// Logout Route
-router.post("/logout", (req, res) => {
-  try {
-    res.clearCookie("token");  // Clear the JWT token cookie
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+      },
+      token,
+    });
+  })
+);
+
+// ✅ Logout Route
+router.post(
+  "/logout",
+  asyncHandler(async (_req, res) => {
+    res.clearCookie("token");
     res.status(200).json({ message: "Logout successful" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to log out" });
-  }
-});
+  })
+);
 
 export default router;
