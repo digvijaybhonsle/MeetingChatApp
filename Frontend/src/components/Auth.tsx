@@ -1,58 +1,97 @@
 import React, { useState } from "react";
+import axios, {AxiosError} from "axios";
+import "./css/auth.css"; 
+import { useNavigate } from "react-router-dom";
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!email || !password || (!isLogin && !name)) {
-      alert("Please fill in all required fields.");
+      setError("Please fill in all required fields.");
       return;
     }
 
-    if (isLogin) {
-      console.log("Logging in:", { email, password });
-    } else {
-      console.log("Signing up:", { name, email, password });
+    setLoading(true);
+    setError(""); 
+
+    try {
+      const url = isLogin
+        ? "http://localhost:5000/api/auth/signin"  
+        : "http://localhost:5000/api/auth/signup"; 
+
+      // Prepare the payload
+      const payload = {
+        email,
+        password,
+        ...(isLogin ? {} : { username : name }) 
+      };
+
+      const response = await axios.post(url, payload);
+
+      const { token, user } = response.data;
+
+      // Save the token in localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("userId", user._id);
+
+      console.log("Authenticated:", user);
+      alert(`${isLogin ? "Logged in" : "Signed up"} successfully!`);
+
+      navigate("/joinroom");
+
+    } catch (err: unknown) {
+        const error = err as AxiosError<{ message: string }>;
+        if (error.response?.data?.message) {
+          setError(error.response.data.message);
+        } else {
+          setError("Something went wrong.");
+        }
+      } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-      <div className="bg-white rounded-lg shadow-md w-full max-w-md p-6">
-        <h2 className="text-2xl font-semibold text-center mb-6">
-          {isLogin ? "Login to your account" : "Create a new account"}
-        </h2>
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2>{isLogin ? "Login to your account" : "Create a new account"}</h2>
 
-        <div className="flex justify-center mb-4 space-x-4">
+        {/* Switch between Login and Signup */}
+        <div className="tab-buttons">
           <button
             onClick={() => setIsLogin(true)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              isLogin ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={isLogin ? "active" : ""}
           >
             Login
           </button>
           <button
             onClick={() => setIsLogin(false)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              !isLogin ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={!isLogin ? "active" : ""}
           >
             Sign Up
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Error message display */}
+        {error && <div className="error-message">{error}</div>}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="form">
+          {/* Show name field only for signup */}
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
+            <div className="form-group">
+              <label>Name</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -60,11 +99,10 @@ const Auth: React.FC = () => {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+          <div className="form-group">
+            <label>Email</label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -72,11 +110,10 @@ const Auth: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+          <div className="form-group">
+            <label>Password</label>
             <input
               type="password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -84,11 +121,9 @@ const Auth: React.FC = () => {
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md"
-          >
-            {isLogin ? "Login" : "Sign Up"}
+          {/* Submit Button */}
+          <button type="submit" className="submit-button" disabled={loading}>
+            {loading ? "Loading..." : isLogin ? "Login" : "Sign Up"}
           </button>
         </form>
       </div>

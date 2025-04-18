@@ -15,17 +15,24 @@ router.post(
   asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    // ❗ Check for missing fields
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const trimmedEmail = email.toLowerCase().trim();
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    const existingUser = await User.findOne({ email: trimmedEmail });
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    // Directly save the user — password will be hashed by Mongoose middleware
     const newUser = new User({
-      username: username.trim(),
-      email: email.toLowerCase().trim(),
-      password: password.trim(),
+      username: trimmedUsername,
+      email: trimmedEmail,
+      password: trimmedPassword,
     });
 
     await newUser.save();
@@ -40,6 +47,7 @@ router.post(
     });
   })
 );
+
 
 // ✅ Signin Route
 router.post(

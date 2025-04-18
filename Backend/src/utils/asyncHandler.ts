@@ -8,5 +8,4 @@ const asyncHandler = (fn: AsyncHandler): RequestHandler => {
     fn(req, res, next).catch(next); // Catch errors and pass them to next middleware (error handler)
   };
 };
-
 export default asyncHandler;

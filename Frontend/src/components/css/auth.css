@@ -1,0 +1,120 @@
+/* Container for full screen height and centering */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f3f4f6;
+    padding: 1rem;
+  }
+  
+  /* Box for the authentication form */
+  .auth-box {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 450px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .auth-box h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.75rem;
+    font-weight: 600;
+  }
+  
+  /* Tabs for switching between Login and SignUp */
+  .tab-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .tab-buttons button {
+    padding: 0.75rem 1.5rem;
+    background-color: #f0f4f8;
+    border-radius: 5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .tab-buttons button.active {
+    background-color: #2563eb;
+    color: white;
+  }
+  
+  .tab-buttons button:hover:not(.active) {
+    background-color: #e5e7eb;
+  }
+  
+  /* Styling the form inputs */
+  .form {
+    width: 100%;
+  }
+  
+  .form-group {
+    width: 100%;
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .form-group input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 5px rgba(37, 99, 235, 0.4);
+  }
+  
+  /* Error message styling */
+  .error-message {
+    color: #d32f2f;
+    background-color: #fdecea;
+    padding: 1rem;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    text-align: center;
+    width: 100%;
+    font-size: 1rem;
+  }
+  
+  /* Submit button styling */
+  .submit-button {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+  }
+  
+  .submit-button:hover {
+    background-color: #1e40af;
+  }
+  
+  .submit-button:active {
+    background-color: #1e3a8a;
+  }
+  

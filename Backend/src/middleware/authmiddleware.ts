@@ -1,4 +1,3 @@
-// middleware/authMiddleware.ts
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
@@ -15,7 +14,7 @@ const protect = (req: Request, res: Response, next: NextFunction): void => {
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ success: false, error: "Not authorized, token missing" });
-    return;
+    return; // just return void, don't return the response
   }
 
   const token = authHeader.replace("Bearer ", "");
@@ -26,7 +25,6 @@ const protect = (req: Request, res: Response, next: NextFunction): void => {
     next();
   } catch (error) {
     res.status(401).json({ success: false, error: "Not authorized, token invalid" });
-    return;
   }
 };
 

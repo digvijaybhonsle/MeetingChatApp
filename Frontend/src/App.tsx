@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { io } from "socket.io-client";
-import Auth from "./components/auth";
+import Auth from "./components/Auth";
+import "./App.css";
+import {BrowserRouter as Router, Routes , Route } from "react-router-dom";
+import RoomJoin from "./components/JoinRoom";
+import Room from "./components/Room";
 
 const socket = io("http://localhost:5000");
 
@@ -21,10 +25,13 @@ function App() {
   
 
   return (
-    <div>
-      <Auth />
-      <h2 className="text-3xl text-blue">Hello</h2>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Auth />} />
+        <Route path="/joinroom" element={<RoomJoin />} />
+        <Route path="/rooms/:roomId" element={<Room />} />
+      </Routes>
+    </Router>
   )
 }
 
