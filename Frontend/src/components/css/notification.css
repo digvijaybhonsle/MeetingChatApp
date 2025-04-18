@@ -1,0 +1,40 @@
+/* styles.css or notification.css */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+  
+  .alert {
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    color: white;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .alert-message {
+    background-color: #007bff;
+  }
+  .alert-join {
+    background-color: #28a745;
+  }
+  .alert-leave {
+    background-color: #dc3545;
+  }
+  .alert-video {
+    background-color: #ffc107;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(30%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  

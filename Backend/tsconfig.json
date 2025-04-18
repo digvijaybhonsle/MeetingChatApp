@@ -7,8 +7,8 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "typeRoots": ["./node_modules/@types", "./types"],
-    "types": ["node", "express"]
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "types": ["node", "express"],
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]
