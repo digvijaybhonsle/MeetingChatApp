@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "./css/room.css";
+import VideoControl from "./VideoControl";
 
 interface Room {
   _id: string;
@@ -30,11 +31,14 @@ const Room: React.FC = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  const axiosConfig = React.useMemo(() => ({
-    headers: { Authorization: `Bearer ${token}` },
-  }), [token]);
+  const axiosConfig = React.useMemo(
+    () => ({
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    [token]
+  );
 
-  // ✅ Real-time socket listeners
+  // Listen for new chat messages in real-time
   useEffect(() => {
     socket.on("chat-message", (newMessage: MessageData) => {
       setMessages((prev) => [...prev, newMessage]);
@@ -45,7 +49,7 @@ const Room: React.FC = () => {
     };
   }, []);
 
-  // ✅ Fetch room and chat history
+  // Fetch room details and messages when roomId changes
   useEffect(() => {
     if (!roomId) return;
 
@@ -54,7 +58,7 @@ const Room: React.FC = () => {
       try {
         const [roomRes, messageRes] = await Promise.all([
           axios.get(`http://localhost:5000/api/rooms/${roomId}`, axiosConfig),
-          axios.get(`http://localhost:5000/api/messages/${roomId}`, axiosConfig)
+          axios.get(`http://localhost:5000/api/messages/${roomId}`, axiosConfig),
         ]);
         setRoom(roomRes.data);
         setMessages(messageRes.data);
@@ -67,7 +71,7 @@ const Room: React.FC = () => {
     fetchData();
   }, [roomId, axiosConfig]);
 
-  // ✅ Send message
+  // Handle sending chat message
   const handleSendMessage = () => {
     if (!message.trim() || !userId || !roomId) return;
 
@@ -75,31 +79,36 @@ const Room: React.FC = () => {
       roomId,
       message: {
         sender: userId,
-        content: message
-      }
+        content: message,
+      },
     };
 
-    // Immediately update the frontend to show the sent message
     const newMessage: MessageData = {
       sender: userId,
       content: message,
-      createdAt: new Date().toISOString() // Add timestamp
+      createdAt: new Date().toISOString(),
     };
-    
+
+    // Update local messages immediately
     setMessages((prev) => [...prev, newMessage]);
 
-    // Emit the message to the backend and other clients in the room
+    // Emit message to server
     socket.emit("chat-message", messageData);
 
-    // Reset message input field
+    // Clear input after sending
     setMessage("");
   };
 
-  // ✅ Leave room
+  // Handle leaving the room
   const handleLeaveRoom = () => {
     if (!roomId || !userId) return;
 
-    axios.post(`http://localhost:5000/api/rooms/${roomId}/leave`, { roomId, userId }, axiosConfig)
+    axios
+      .post(
+        `http://localhost:5000/api/rooms/${roomId}/leave`,
+        { roomId, userId },
+        axiosConfig
+      )
       .then(() => {
         socket.emit("userLeft", { roomId, userId });
         navigate("/joinroom");
@@ -107,10 +116,13 @@ const Room: React.FC = () => {
       .catch(() => setError("Failed to leave room."));
   };
 
+  // Format timestamp into a readable string (HH:MM)
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
+
+  const isHost = userId === room?.hostId;
 
   return (
     <div className="room-container">
@@ -118,18 +130,20 @@ const Room: React.FC = () => {
         <div className="room-layout">
           {/* Video Section */}
           <div className="video-section">
-            <h2>Room: {room._id}</h2>
-            <iframe
-              width="100%"
-              height="100%"
-              src={room.videoUrl}
-              title="Room Video"
-              frameBorder="0"
-              allowFullScreen
+            <div className="video-header">
+              <h2 style={{ color: "white", marginTop: "-120px" }}>
+                Room: {room._id}
+              </h2>
+              <button className="leave-btn" onClick={handleLeaveRoom}>
+                Leave Room
+              </button>
+            </div>
+
+            <VideoControl
+              videoURL={room.videoUrl}
+              roomId={room._id}
+              isHost={isHost}
             />
-            <button className="leave-btn" onClick={handleLeaveRoom}>
-              Leave Room
-            </button>
           </div>
 
           {/* Chat Section */}
@@ -142,10 +156,15 @@ const Room: React.FC = () => {
                 <div className="loading">Loading messages...</div>
               ) : (
                 messages.map((msg, index) => (
-                  <div key={index} className={`message ${msg.sender === userId ? "own-message" : ""}`}>
+                  <div
+                    key={index}
+                    className={`message ${msg.sender === userId ? "own-message" : ""}`}
+                  >
                     <div className="meta">
                       <strong>{msg.sender === userId ? "You" : msg.sender}</strong>{" "}
-                      <span className="timestamp">{formatTimestamp(msg.createdAt)}</span>
+                      <span className="timestamp">
+                        {formatTimestamp(msg.createdAt)}
+                      </span>
                     </div>
                     <div className="content">{msg.content}</div>
                   </div>

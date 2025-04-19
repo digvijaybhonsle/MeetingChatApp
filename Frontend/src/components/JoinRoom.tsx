@@ -3,6 +3,7 @@ import axios from "axios";
 import "./css/roomjoin.css";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import socket from "../socket";
 
 interface Room {
   _id: string;
@@ -10,8 +11,6 @@ interface Room {
   videoUrl: string;
   users: string[];
 }
-
-const socket = io("http://localhost:5000");
 
 const RoomJoin: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -34,8 +33,24 @@ const RoomJoin: React.FC = () => {
     },
   };
 
+  // Ensure token exists before API requests
+  const checkToken = () => {
+    if (!token) {
+      setError("Please log in to continue.");
+      navigate("/login");
+      return false;
+    }
+    return true;
+  };
+
   // ✅ Attach socket events correctly inside the component
   useEffect(() => {
+    if (!checkToken()) return;
+
+    const socket = io("http://localhost:5000", {
+      query: { token }, // Pass token for socket authentication
+    });
+
     socket.on("newRoom", (newRoom: Room) => {
       setRooms((prev) => [...prev, newRoom]);
     });
@@ -48,13 +63,16 @@ const RoomJoin: React.FC = () => {
       socket.off("newRoom");
       socket.off("roomUserUpdate");
     };
-  }, []);
+  }, [token]);
 
   const fetchRooms = async () => {
+    if (!checkToken()) return;
+
     try {
       const res = await axios.get("http://localhost:5000/api/rooms", axiosConfig);
       setRooms(res.data);
-    } catch {
+    } catch (err) {
+      console.error("Error fetching rooms:", err);
       setError("Failed to fetch rooms.");
     }
   };
@@ -96,7 +114,8 @@ const RoomJoin: React.FC = () => {
       setRooms((prev) => [...prev, res.data]);
       alert("Room created successfully!");
       setVideoUrl("");
-    } catch (err: unknown) {
+    } catch (err) {
+      console.error("Error creating room:", err);
       if (axios.isAxiosError(err) && err.response) {
         setError(err.response.data?.error || "Failed to create room.");
       } else {
@@ -128,7 +147,8 @@ const RoomJoin: React.FC = () => {
       alert("Joined room successfully!");
       setRoomIdToJoin("");
       navigate(`/rooms/${roomIdToJoin}`);
-    } catch (err: unknown) {
+    } catch (err) {
+      console.error("Error joining room:", err);
       if (axios.isAxiosError(err) && err.response) {
         setError(err.response.data?.error || "Failed to join room.");
       } else {
@@ -149,7 +169,8 @@ const RoomJoin: React.FC = () => {
         axiosConfig
       );
       setSearchResult(res.data);
-    } catch (err: unknown) {
+    } catch (err) {
+      console.error("Error searching room:", err);
       if (axios.isAxiosError(err) && err.response) {
         setError(err.response.data?.error || "Room not found.");
       } else {

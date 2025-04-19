@@ -7,17 +7,19 @@ import asyncHandler from '../utils/asyncHandler';
 const router = express.Router();
 
 // ✅ Get all notifications for the logged-in user
-router.get('/', protect, asyncHandler(async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized: User not found" });
-    }
-    const notifications = await Notification.find({ recipientId: req.user.id }).sort({ createdAt: -1 });
-    res.status(200).json(notifications);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch notifications" });
-  }
-}));
+// router.get('/', protect, asyncHandler(async (req, res) => {
+//   try {
+//     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+
+//     const notifications = await Notification.find({
+//       recipientId: req.userId,
+//     }).sort({ createdAt: -1 });
+
+//     res.status(200).json(notifications);
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to fetch notifications" });
+//   }
+// }));
 
 // ✅ Mark a specific notification as read
 router.patch('/:id/read', protect, asyncHandler(async (req, res) => {

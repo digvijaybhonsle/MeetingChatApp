@@ -26,13 +26,13 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        <NotificationProvider>
+      <NotificationProvider>
+        <Routes>
           <Route path="/" element={<Auth />} />
           <Route path="/joinroom" element={<RoomJoin />} />
           <Route path="/rooms/:roomId" element={<Room />} />
-        </NotificationProvider>
-      </Routes>
+        </Routes>
+      </NotificationProvider>
     </Router>
   );
 }

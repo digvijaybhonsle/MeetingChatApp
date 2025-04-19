@@ -30,15 +30,19 @@ export const initSocket = (server: any) => {
     socket.on("join-room", async ({ roomId, userId }) => {
       socket.join(roomId);
       console.log(`User joined room: ${roomId}`);
+
       if (!roomUsers[roomId]) roomUsers[roomId] = new Set();
       roomUsers[roomId].add(userId);
       socketToUser[socket.id] = userId;
 
-      // Sync latest video state
+      // Sync the latest video state with the new user
       const latestState = await VideoState.findOne({ roomId }).sort({ createdAt: -1 });
       if (latestState) {
         socket.emit("video-sync", latestState);
       }
+
+      const messages = await Message.find({ roomId }).sort({ createdAt: 1 }); // Sorted by creation time
+      socket.emit("chat-history", messages);
 
       // Notify others in the room about new user
       io.to(roomId).emit("room-users", {
@@ -90,7 +94,7 @@ export const initSocket = (server: any) => {
     socket.on('leave-room', async ({ roomId, userId }) => {
       // Remove user from socket room
       socket.leave(roomId);
-    
+
       // Remove user from database as well (same logic as in your route)
       try {
         const room = await Room.findById(roomId);
@@ -98,10 +102,10 @@ export const initSocket = (server: any) => {
           room.users = room.users.filter((participantId: { equals: (arg0: any) => any; }) => !participantId.equals(userId));
           await room.save();
         }
-    
+
         // Emit to other users that someone left
         socket.to(roomId).emit('user-left', { userId, roomId });
-    
+
         console.log(`User ${userId} left room: ${roomId}`);
       } catch (error) {
         console.error('Error handling leave-room socket event:', error);
@@ -120,6 +124,19 @@ export const initSocket = (server: any) => {
     // Video sync actions
     socket.on("video-action", ({ roomId, action }) => {
       socket.to(roomId).emit("video-action", action);
+    });
+
+    socket.on("video:play", ({ roomId, currentTime }) => {
+      socket.to(roomId).emit("video:play", currentTime);
+    });
+
+    socket.on("video:pause", ({ roomId, currentTime }) => {
+      console.log(`⏸ Pause emitted to room ${roomId} at time ${currentTime}`);
+      socket.to(roomId).emit("video:pause", { currentTime });
+    });
+
+    socket.on("video:seek", ({ roomId, currentTime }) => {
+      socket.to(roomId).emit("video:seek", currentTime);
     });
 
     // Disconnect logic

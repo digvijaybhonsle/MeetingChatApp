@@ -1,11 +1,14 @@
-// types/express/index.d.ts
-import { User } from "./src/models/user"; // Adjust path based on your project
+// src/types/express/index.d.ts
+
+import { Request } from "express";
+import { JwtPayload } from 'jsonwebtoken';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: User, // Add your actual user type here if you have one
-      id: string;
+      user?: JwtPayload | { id: string };
     }
   }
 }
+
+export {};
