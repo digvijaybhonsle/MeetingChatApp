@@ -3,7 +3,7 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import VideoState from "../models/videoState";
 import Message from "../models/message";
 import { Room } from "../models/room";
-import Notification from '../models/notification';
+import Notification from "../models/notification";
 
 let io: Server<DefaultEventsMap, DefaultEventsMap>;
 
@@ -12,7 +12,13 @@ interface RoomUserMap {
 }
 
 const roomUsers: RoomUserMap = {};
-const socketToUser: { [socketId: string]: string } = {}; // Map socket ID to user ID
+
+// Helper function to get users of a room
+const getRoomUsers = (roomId: string): { count: number; users: string[] } => {
+  const users = Array.from(roomUsers[roomId] || []);
+  return { count: users.length, users };
+};
+const socketToUser: { [socketId: string]: string } = {};
 
 export const initSocket = (server: any) => {
   io = new Server(server, {
@@ -24,95 +30,67 @@ export const initSocket = (server: any) => {
   });
 
   io.on("connection", (socket: Socket) => {
-    console.log(`🔌 User connected: ${socket.id}`);
+    console.log(`🔌 Connected: ${socket.id}`);
 
-    // Join Room
     socket.on("join-room", async ({ roomId, userId }) => {
       socket.join(roomId);
-      console.log(`User joined room: ${roomId}`);
+      socketToUser[socket.id] = userId;
+
+      const roomState = getRoomUsers(roomId);
+      socket.emit("video:sync", roomState);
 
       if (!roomUsers[roomId]) roomUsers[roomId] = new Set();
       roomUsers[roomId].add(userId);
-      socketToUser[socket.id] = userId;
 
-      // Sync the latest video state with the new user
+      console.log(`👥 ${userId} joined room: ${roomId}`);
+
       const latestState = await VideoState.findOne({ roomId }).sort({ createdAt: -1 });
-      if (latestState) {
-        socket.emit("video-sync", latestState);
-      }
+      if (latestState) socket.emit("video-sync", latestState);
 
-      const messages = await Message.find({ roomId }).sort({ createdAt: 1 }); // Sorted by creation time
+      const messages = await Message.find({ roomId }).sort({ createdAt: 1 });
       socket.emit("chat-history", messages);
 
-      // Notify others in the room about new user
       io.to(roomId).emit("room-users", {
         count: roomUsers[roomId].size,
         users: Array.from(roomUsers[roomId]),
       });
     });
 
-    // Real-time Chat
-    socket.on("chat-message", async (messageData: { roomId: string; message: { sender: string; content: string } }) => {
-      const { roomId, message } = messageData;
+    socket.on("chat-message", async ({ roomId, message }) => {
+      const { sender, senderName, content } = message;
+      if (!roomId || !sender || !content) return;
 
-      if (!roomId) {
-        console.error("❌ No roomId provided in chat message");
-        return;
-      }
+      const newMessage = new Message({
+        roomId,
+        sender,
+        content,
+        senderName,
+      });
+      await newMessage.save();
 
-      try {
-        // Create the message with roomId and sender info
-        const newMessage = new Message({
-          roomId,
-          sender: message.sender,
-          content: message.content
-        });
+      await new Notification({
+        recipientId: roomId,
+        senderId: sender,
+        type: "message",
+        content: `${senderName || "Someone"} sent a message`,
+      }).save();
 
-        await newMessage.save();
+      io.to(roomId).emit("new-notification", {
+        type: "message",
+        senderId: sender,
+        senderName,
+        content: `${senderName || "Someone"} sent a message`,
+      });
 
-        await new Notification({
-          recipientId: roomId, // or individual userId if required
-          senderId: message.sender,
-          type: "message",
-          content: `${message.sender} sent a message`,
-        }).save();
-
-        io.to(roomId).emit("new-notification", {
-          type: "message",
-          senderId: message.sender,
-          content: `${message.sender} sent a message`,
-        });
-
-        // Emit to all clients in the same room
-        io.to(roomId).emit("chat-message", newMessage);
-      } catch (error) {
-        console.error("❌ Failed to save message:", error);
-      }
+      io.to(roomId).emit("chat-message", {
+        _id: newMessage._id,
+        sender,
+        content,
+        createdAt: newMessage.createdAt,
+        senderName,
+      });    
     });
 
-    // Leave Room
-    socket.on('leave-room', async ({ roomId, userId }) => {
-      // Remove user from socket room
-      socket.leave(roomId);
-
-      // Remove user from database as well (same logic as in your route)
-      try {
-        const room = await Room.findById(roomId);
-        if (room && room.users.includes(userId)) {
-          room.users = room.users.filter((participantId: { equals: (arg0: any) => any; }) => !participantId.equals(userId));
-          await room.save();
-        }
-
-        // Emit to other users that someone left
-        socket.to(roomId).emit('user-left', { userId, roomId });
-
-        console.log(`User ${userId} left room: ${roomId}`);
-      } catch (error) {
-        console.error('Error handling leave-room socket event:', error);
-      }
-    });
-
-    // Typing indicators
     socket.on("typing", ({ roomId, username }) => {
       socket.to(roomId).emit("typing", { username });
     });
@@ -121,25 +99,63 @@ export const initSocket = (server: any) => {
       socket.to(roomId).emit("stop-typing", { username });
     });
 
-    // Video sync actions
-    socket.on("video-action", ({ roomId, action }) => {
-      socket.to(roomId).emit("video-action", action);
+    socket.on("leave-room", async ({ roomId, userId }) => {
+      socket.leave(roomId);
+      if (roomUsers[roomId]) {
+        roomUsers[roomId].delete(userId);
+      }
+
+      const room = await Room.findById(roomId);
+      if (room) {
+        room.users = room.users.filter((id: any) => id.toString() !== userId);
+        await room.save();
+      }
+
+      console.log(`👤 ${userId} left room: ${roomId}`);
+      socket.to(roomId).emit("user-left", { userId });
+
+      io.to(roomId).emit("room-users", {
+        count: roomUsers[roomId]?.size || 0,
+        users: Array.from(roomUsers[roomId] || []),
+      });
     });
 
-    socket.on("video:play", ({ roomId, currentTime }) => {
-      socket.to(roomId).emit("video:play", currentTime);
+    socket.on("video:play", async ({ roomId, currentTime }) => {
+      try {
+        socket.to(roomId).emit("video:play", { currentTime });
+        const state = new VideoState({ roomId, state: "play", timestamp: Date.now(), currentTime });
+        await state.save();
+        io.to(roomId).emit("video-sync", state);
+      } catch (err) {
+        console.error("Error in video play sync:", err);
+      }
+    });
+    
+    socket.on("video:pause", async ({ roomId, currentTime }) => {
+      try {
+        socket.to(roomId).emit("video:pause", { currentTime });
+        const state = new VideoState({ roomId, state: "pause", timestamp: Date.now(), currentTime });
+        await state.save();
+        io.to(roomId).emit("video-sync", state);
+      } catch (err) {
+        console.error("Error in video pause sync:", err);
+      }
+    });
+    
+
+    socket.on("video:seek", async (data) => {
+      const { roomId, currentTime, state, timestamp } = data;
+      if (!roomId || currentTime == null || !state || timestamp == null) {
+        console.error("Missing video:seek fields", data);
+        return;
+      }
+      try {
+        await VideoState.create({ roomId, currentTime, state, timestamp });
+      } catch (err) {
+        console.error("Error saving video state:", err);
+      }
     });
 
-    socket.on("video:pause", ({ roomId, currentTime }) => {
-      console.log(`⏸ Pause emitted to room ${roomId} at time ${currentTime}`);
-      socket.to(roomId).emit("video:pause", { currentTime });
-    });
-
-    socket.on("video:seek", ({ roomId, currentTime }) => {
-      socket.to(roomId).emit("video:seek", currentTime);
-    });
-
-    // Disconnect logic
     socket.on("disconnecting", () => {
       const userId = socketToUser[socket.id];
       for (const roomId of socket.rooms) {
@@ -155,7 +171,7 @@ export const initSocket = (server: any) => {
     });
 
     socket.on("disconnect", () => {
-      console.log(`❌ User disconnected: ${socket.id}`);
+      console.log(`❌ Disconnected: ${socket.id}`);
     });
   });
 };

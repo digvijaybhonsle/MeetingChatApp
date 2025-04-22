@@ -64,6 +64,7 @@ app.use(errorHandler);
 // Init socket after all middleware
 initSocket(server);
 
+
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

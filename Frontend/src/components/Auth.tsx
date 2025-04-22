@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios, {AxiosError} from "axios";
+import axios, { AxiosError } from "axios";
 import "./css/auth.css"; 
 import { useNavigate } from "react-router-dom";
 
@@ -32,7 +32,7 @@ const Auth: React.FC = () => {
       const payload = {
         email,
         password,
-        ...(isLogin ? {} : { username : name }) 
+        ...(isLogin ? {} : { username: name }) 
       };
 
       const response = await axios.post(url, payload);
@@ -42,20 +42,28 @@ const Auth: React.FC = () => {
       // Save the token in localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("userId", user._id);
+      localStorage.setItem("username", user.username || user.name);
 
       console.log("Authenticated:", user);
       alert(`${isLogin ? "Logged in" : "Signed up"} successfully!`);
 
-      navigate("/joinroom");
+      // Redirect based on login/signup
+      if (isLogin) {
+        navigate("/joinroom");  // Redirect to join room after login
+      } else {
+        // After successful signup, switch to the login form
+        setIsLogin(true);
+        alert("Account created successfully. Please log in.");
+      }
 
     } catch (err: unknown) {
-        const error = err as AxiosError<{ message: string }>;
-        if (error.response?.data?.message) {
-          setError(error.response.data.message);
-        } else {
-          setError("Something went wrong.");
-        }
-      } finally {
+      const error = err as AxiosError<{ message: string }>;
+      if (error.response?.data?.message) {
+        setError(error.response.data.message);
+      } else {
+        setError("Something went wrong.");
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -74,7 +82,9 @@ const Auth: React.FC = () => {
             Login
           </button>
           <button
-            onClick={() => setIsLogin(false)}
+            onClick={() => {
+              setIsLogin(false);
+            }}
             className={!isLogin ? "active" : ""}
           >
             Sign Up

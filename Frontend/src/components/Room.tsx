@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { io } from "socket.io-client";
 import "./css/room.css";
 import VideoControl from "./VideoControl";
+import { useChatStore } from "../lib/store/chatStore";
+import notificationSound from "../assets/notification.wav";
+import socket from "../socket/index";
 
 interface Room {
   _id: string;
@@ -13,93 +16,137 @@ interface Room {
 }
 
 interface MessageData {
+  _id?: string;
   sender: string;
   content: string;
   createdAt: string;
+  senderName?: string;
 }
-
-const socket = io("http://localhost:5000");
 
 const Room: React.FC = () => {
   const { roomId } = useParams();
+  const navigate = useNavigate();
+
   const [room, setRoom] = useState<Room | null>(null);
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<MessageData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userId] = useState(localStorage.getItem("userId"));
   const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [userId] = useState(localStorage.getItem("userId"));
+  const [username] = useState(localStorage.getItem("username") || "You");
+
+  const { messages, addMessage, setMessages } = useChatStore();
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const token = localStorage.getItem("token");
 
-  const axiosConfig = React.useMemo(
+  const axiosConfig = useMemo(
     () => ({
       headers: { Authorization: `Bearer ${token}` },
     }),
     [token]
   );
 
-  // Listen for new chat messages in real-time
+  // Scroll to latest message
   useEffect(() => {
-    socket.on("chat-message", (newMessage: MessageData) => {
-      setMessages((prev) => [...prev, newMessage]);
-    });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    return () => {
-      socket.off("chat-message");
-    };
-  }, []);
-
-  // Fetch room details and messages when roomId changes
+  // Fetch room and message data
   useEffect(() => {
     if (!roomId) return;
 
-    const fetchData = async () => {
+    const fetchRoomData = async () => {
       setLoading(true);
       try {
-        const [roomRes, messageRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/rooms/${roomId}`, axiosConfig),
+        const [roomRes, messageRes] = await Promise.all([ 
+          axios.get(`http://localhost:5000/api/rooms/${roomId}`, axiosConfig), 
           axios.get(`http://localhost:5000/api/messages/${roomId}`, axiosConfig),
         ]);
         setRoom(roomRes.data);
-        setMessages(messageRes.data);
-      } catch {
+        setMessages(
+          messageRes.data.map((msg: MessageData) => ({ 
+            ...msg, 
+            roomId: roomId || "", 
+          }))
+        );
+      } catch (err) {
         setError("Failed to fetch room or messages.");
       }
       setLoading(false);
     };
 
-    fetchData();
-  }, [roomId, axiosConfig]);
+    fetchRoomData();
+  }, [roomId, axiosConfig, setMessages]);
 
-  // Handle sending chat message
+  // Emit join-room once
+  useEffect(() => {
+    if (roomId && userId) {
+      socket.emit("join-room", { roomId, userId });
+    }
+  }, [roomId, userId]);
+
+  // Handle chat-message once
+  useEffect(() => {
+    const handleNewMessage = (newMsg: MessageData) => {
+      console.log("🔔 New message received via socket:", newMsg);
+      if (newMsg.sender !== userId) {
+        audioRef.current?.play().catch(() => {});
+      }
+      addMessage({
+        ...newMsg,
+        roomId: roomId || "",
+        senderName: newMsg.senderName || "Unknown",
+      });
+    };
+
+    socket.on("chat-message", handleNewMessage);
+
+    return () => {
+      socket.off("chat-message", handleNewMessage);
+    };
+  }, [addMessage, userId, roomId]);
+
   const handleSendMessage = () => {
-    if (!message.trim() || !userId || !roomId) return;
+    if (!message.trim() || !roomId || !userId || !username) return;
 
-    const messageData = {
+    socket.emit("chat-message", {
       roomId,
       message: {
         sender: userId,
-        content: message,
+        content: message.trim(),
+        senderName: username,
       },
-    };
+    });
 
-    const newMessage: MessageData = {
-      sender: userId,
-      content: message,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Update local messages immediately
-    setMessages((prev) => [...prev, newMessage]);
-
-    // Emit message to server
-    socket.emit("chat-message", messageData);
-
-    // Clear input after sending
     setMessage("");
   };
 
-  // Handle leaving the room
+  // Handle syncing video state when user joins the room
+  useEffect(() => {
+    const handleVideoSync = ({
+      currentTime,
+      state,
+    }: {
+      currentTime: number;
+      state: "playing" | "paused";
+    }) => {
+      const video = document.querySelector("video");
+      if (!video) return;
+
+      video.currentTime = currentTime;
+      if (state === "playing") video.play().catch(() => {});
+      else video.pause();
+    };
+
+    socket.on("video:sync", handleVideoSync);
+
+    return () => {
+      socket.off("video:sync", handleVideoSync);
+    };
+  }, []);
+
   const handleLeaveRoom = () => {
     if (!roomId || !userId) return;
 
@@ -110,13 +157,12 @@ const Room: React.FC = () => {
         axiosConfig
       )
       .then(() => {
-        socket.emit("userLeft", { roomId, userId });
+        socket.emit("leave-room", { roomId, userId });
         navigate("/joinroom");
       })
       .catch(() => setError("Failed to leave room."));
   };
 
-  // Format timestamp into a readable string (HH:MM)
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -128,25 +174,23 @@ const Room: React.FC = () => {
     <div className="room-container">
       {room && (
         <div className="room-layout">
-          {/* Video Section */}
           <div className="video-section">
             <div className="video-header">
-              <h2 style={{ color: "white", marginTop: "-120px" }}>
+              <h2 style={{ color: "white", marginTop: "-110px" }}>
                 Room: {room._id}
               </h2>
               <button className="leave-btn" onClick={handleLeaveRoom}>
                 Leave Room
               </button>
             </div>
-
             <VideoControl
               videoURL={room.videoUrl}
               roomId={room._id}
               isHost={isHost}
+              userId={userId || ""}
             />
           </div>
 
-          {/* Chat Section */}
           <div className="chat-section">
             <div className="chat-header">
               <h3>Chat</h3>
@@ -155,22 +199,37 @@ const Room: React.FC = () => {
               {loading ? (
                 <div className="loading">Loading messages...</div>
               ) : (
-                messages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`message ${msg.sender === userId ? "own-message" : ""}`}
-                  >
-                    <div className="meta">
-                      <strong>{msg.sender === userId ? "You" : msg.sender}</strong>{" "}
-                      <span className="timestamp">
-                        {formatTimestamp(msg.createdAt)}
-                      </span>
+                messages
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      new Date(a.createdAt || "").getTime() -
+                      new Date(b.createdAt || "").getTime()
+                  )
+                  .map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`message ${
+                        msg.sender === userId ? "own-message" : ""
+                      }`}
+                    >
+                      <div className="meta">
+                        <strong>
+                          {msg.sender === userId
+                            ? "You"
+                            : msg.senderName || msg.sender}
+                        </strong>
+                        <span className="timestamp">
+                          {formatTimestamp(msg.createdAt || "")}
+                        </span>
+                      </div>
+                      <div className="content">{msg.content}</div>
                     </div>
-                    <div className="content">{msg.content}</div>
-                  </div>
-                ))
+                  ))
               )}
+              <div ref={chatEndRef} />
             </div>
+
             <div className="chat-input">
               <input
                 type="text"
@@ -183,6 +242,7 @@ const Room: React.FC = () => {
               />
               <button onClick={handleSendMessage}>Send</button>
             </div>
+            <audio ref={audioRef} src={notificationSound} />
           </div>
         </div>
       )}

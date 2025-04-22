@@ -1,233 +1,152 @@
 import React, { useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
+import socket from "../socket/index";
 import "./css/VideoControl.css";
-
-const socket = io("http://localhost:5000");
+// import { toast } from 'react-toastify';
 
 interface VideoControlProps {
   videoURL: string;
   roomId: string;
   isHost: boolean;
+  userId: string;
+}
+
+interface VideoSyncPayload {
+  roomId: string;
+  currentTime: number;
+  state: "playing" | "paused";
+  timestamp: number;
 }
 
 const VideoControl: React.FC<VideoControlProps> = ({
   videoURL,
   roomId,
-  isHost,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+//   const isSyncingRef = useRef(false);
+  const seekTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync local time updates
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const updateTime = () => {
-      setCurrentTime(video.currentTime);
-    };
-
-    const loaded = () => {
-      setDuration(video.duration);
-    };
+    const updateTime = () => setCurrentTime(video.currentTime);
+    const updateDuration = () => setDuration(video.duration);
 
     video.addEventListener("timeupdate", updateTime);
-    video.addEventListener("loadedmetadata", loaded);
+    video.addEventListener("loadedmetadata", updateDuration);
 
     return () => {
       video.removeEventListener("timeupdate", updateTime);
-      video.removeEventListener("loadedmetadata", loaded);
+      video.removeEventListener("loadedmetadata", updateDuration);
     };
   }, []);
 
-  // Emit sync events if host
+  // Sync video play state
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handlePlay = () => {
-      if (isHost && !isSyncing) {
-        socket.emit("video:play", { roomId, currentTime: video.currentTime });
+    const handleSyncState = ({
+      currentTime,
+      state,
+    }: VideoSyncPayload) => {
+      if (state === "playing" && videoRef.current) {
+        videoRef.current.currentTime = currentTime;
+        videoRef.current.play().catch(() => {});
+      } else if (state === "paused" && videoRef.current) {
+        videoRef.current.pause();
       }
     };
 
-    const handlePause = () => {
-      if (isHost && !isSyncing) {
-        socket.emit("video:pause", { roomId, currentTime: video.currentTime });
-      }
-    };
-
-    const handleSeek = () => {
-      if (isHost && !isSyncing) {
-        socket.emit("video:seek", { roomId, currentTime: video.currentTime });
-      }
-    };
-
-    video.addEventListener("play", handlePlay);
-    video.addEventListener("pause", handlePause);
-    video.addEventListener("seeked", handleSeek);
+    socket.on("video:sync", handleSyncState);
 
     return () => {
-      video.removeEventListener("play", handlePlay);
-      video.removeEventListener("pause", handlePause);
-      video.removeEventListener("seeked", handleSeek);
+      socket.off("video:sync", handleSyncState);
     };
-  }, [isHost, roomId, isSyncing]);
+  }, []);
 
-  // Listen to socket events for non-host
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const playListener = ({ currentTime }: { currentTime: number }) => {
-      if (!isHost) {
-        setIsSyncing(true);
-        if (Math.abs(video.currentTime - currentTime) > 0.5) {
-            videoRef.current!.currentTime = currentTime;
-        }
-        video.play().finally(() => {
-          setIsSyncing(false);
-          setIsPlaying(true);
+  // Handle play/pause button click
+  const handlePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        socket.emit("video:sync", {
+          roomId,
+          currentTime: videoRef.current.currentTime,
+          state: "paused",
+          timestamp: Date.now(),
+        });
+      } else {
+        videoRef.current.play().catch(() => {});
+        socket.emit("video:sync", {
+          roomId,
+          currentTime: videoRef.current.currentTime,
+          state: "playing",
+          timestamp: Date.now(),
         });
       }
-    };
-
-    const pauseListener = ({ currentTime }: { currentTime: number }) => {
-      if (!isHost) {
-        setIsSyncing(true);
-        videoRef.current!.currentTime = currentTime;
-        video.pause();
-        setIsPlaying(false);
-        setTimeout(() => setIsSyncing(false), 300);
-      }
-    };
-
-    const seekListener = ({ currentTime }: { currentTime: number }) => {
-      if (!isHost) {
-        setIsSyncing(true);
-        videoRef.current!.currentTime = currentTime;
-        setTimeout(() => setIsSyncing(false), 300);
-      }
-    };
-
-    socket.on("video:play", playListener);
-    socket.on("video:pause", pauseListener);
-    socket.on("video:seek", seekListener);
-
-    return () => {
-      socket.off("video:play", playListener);
-      socket.off("video:pause", pauseListener);
-      socket.off("video:seek", seekListener);
-    };
-  }, [isHost]);
-
-  // Host play/pause
-  const handleCustomPlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.play();
-    setIsPlaying(true);
-  };
-
-  const handleCustomPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.pause();
-    setIsPlaying(false);
-  };
-
-  const handleSeekSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const video = videoRef.current;
-    if (!video) return;
-    const newTime = parseFloat(e.target.value);
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const toggleFullscreen = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (!document.fullscreenElement) {
-      video.requestFullscreen();
-    } else {
-      document.exitFullscreen();
+      setIsPlaying(!isPlaying);
     }
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const video = videoRef.current;
-    if (!video) return;
-    const vol = parseFloat(e.target.value);
-    video.volume = vol;
-    setVolume(vol);
+  // Handle seek action
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const seekTime = parseFloat(e.target.value);
+    if (seekTimeout.current) {
+      clearTimeout(seekTimeout.current);
+    }
+
+    seekTimeout.current = setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = seekTime;
+        socket.emit("video:sync", {
+          roomId,
+          currentTime: seekTime,
+          state: isPlaying ? "playing" : "paused",
+          timestamp: Date.now(),
+        });
+      }
+    }, 300);
   };
 
-  const formatTime = (time: number) => {
-    const mins = Math.floor(time / 60)
-      .toString()
-      .padStart(2, "0");
-    const secs = Math.floor(time % 60)
-      .toString()
-      .padStart(2, "0");
-    return `${mins}:${secs}`;
+  // Handle volume change
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+    }
   };
 
   return (
-    <div className="video-control">
+    <div className="video-controls">
       <video
         ref={videoRef}
-        src={videoURL}
         className="video-player"
+        src={videoURL}
         controls={false}
+        onClick={handlePlayPause}
       />
-
-      <div className="video-time">
-        {formatTime(currentTime)} / {formatTime(duration)}
-      </div>
-
-      {isHost && (
+      <div className="controls">
+        <button className="play-pause" onClick={handlePlayPause}>
+          {isPlaying ? "Pause" : "Play"}
+        </button>
         <input
           type="range"
-          min={0}
+          min="0"
           max={duration}
           value={currentTime}
-          onChange={handleSeekSlider}
-          step={0.1}
-          className="video-slider"
+          onChange={handleSeek}
         />
-      )}
-
-      <div className="video-controls">
-        {isHost ? (
-          <>
-            <button
-              onClick={isPlaying ? handleCustomPause : handleCustomPlay}
-              className="video-button"
-            >
-              {isPlaying ? "Pause" : "Play"}
-            </button>
-
-            <button onClick={toggleFullscreen} className="video-button">
-              Fullscreen
-            </button>
-
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={handleVolumeChange}
-              className="video-volume"
-            />
-          </>
-        ) : (
-          <span className="video-locked-message">🔒 Controlled by host</span>
-        )}
+        <input
+          type="range"
+          min="0"
+          max="1"
+          value={volume}
+          step="0.01"
+          onChange={handleVolumeChange}
+        />
       </div>
     </div>
   );
