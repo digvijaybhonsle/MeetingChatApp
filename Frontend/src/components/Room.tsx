@@ -168,7 +168,7 @@ const Room: React.FC = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const isHost = userId === room?.hostId;
+  // const isHost = userId === room?.hostId;
 
   return (
     <div className="room-container">
@@ -186,8 +186,7 @@ const Room: React.FC = () => {
             <VideoControl
               videoURL={room.videoUrl}
               roomId={room._id}
-              isHost={isHost}
-              userId={userId || ""}
+              userId={userId || ""} 
             />
           </div>
 
