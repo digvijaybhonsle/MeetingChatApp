@@ -10,6 +10,7 @@ interface Room {
   hostId: string;
   videoUrl: string;
   users: string[];
+  createdAt: string; 
 }
 
 const RoomJoin: React.FC = () => {
@@ -69,7 +70,10 @@ const RoomJoin: React.FC = () => {
     if (!checkToken()) return;
 
     try {
-      const res = await axios.get("http://localhost:5000/api/rooms", axiosConfig);
+      const res = await axios.get(
+        "http://localhost:5000/api/rooms",
+        axiosConfig
+      );
       setRooms(res.data);
     } catch (err) {
       console.error("Error fetching rooms:", err);
@@ -83,7 +87,8 @@ const RoomJoin: React.FC = () => {
 
   // ✅ Validate video URL
   const isValidUrl = (url: string) => {
-    const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|.+)\S*$/;
+    const pattern =
+      /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|.+)\S*$/;
     return pattern.test(url);
   };
 
@@ -232,22 +237,41 @@ const RoomJoin: React.FC = () => {
       {searchResult && (
         <div className="search-result">
           <h4>Search Result:</h4>
-          <p><strong>ID:</strong> {searchResult._id}</p>
-          <p><strong>Host ID:</strong> {searchResult.hostId}</p>
-          <p><strong>Video URL:</strong> {searchResult.videoUrl}</p>
-          <p><strong>Users:</strong> {searchResult.users.length}</p>
+          <p>
+            <strong>ID:</strong> {searchResult._id}
+          </p>
+          <p>
+            <strong>Host ID:</strong> {searchResult.hostId}
+          </p>
+          <p>
+            <strong>Video URL:</strong> {searchResult.videoUrl}
+          </p>
+          <p>
+            <strong>Users:</strong> {searchResult.users.length}
+          </p>
         </div>
       )}
 
       <div className="rooms-list">
         <h3>All Available Rooms</h3>
-        {rooms.map((room) => (
-          <div className="room-card" key={room._id}>
-            <p><strong>ID:</strong> {room._id}</p>
-            <p><strong>Video URL:</strong> {room.videoUrl}</p>
-            <p><strong>Users:</strong> {room.users.length}</p>
-          </div>
-        ))}
+        {rooms
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          ) // Sorting by newest
+          .map((room) => (
+            <div className="room-card" key={room._id}>
+              <p>
+                <strong>ID:</strong> {room._id}
+              </p>
+              <p>
+                <strong>Video URL:</strong> {room.videoUrl}
+              </p>
+              <p>
+                <strong>Users:</strong> {room.users.length}
+              </p>
+            </div>
+          ))}
       </div>
 
       <div className="rooms-list joined">
@@ -257,8 +281,12 @@ const RoomJoin: React.FC = () => {
         ) : (
           joinedRooms.map((room) => (
             <div className="room-card" key={room._id}>
-              <p><strong>ID:</strong> {room._id}</p>
-              <p><strong>Video URL:</strong> {room.videoUrl}</p>
+              <p>
+                <strong>ID:</strong> {room._id}
+              </p>
+              <p>
+                <strong>Video URL:</strong> {room.videoUrl}
+              </p>
             </div>
           ))
         )}

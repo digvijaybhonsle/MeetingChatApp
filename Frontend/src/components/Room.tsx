@@ -53,41 +53,51 @@ const Room: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch room and message data
+  // Fetch only room data
   useEffect(() => {
     if (!roomId) return;
 
     const fetchRoomData = async () => {
       setLoading(true);
       try {
-        const [roomRes, messageRes] = await Promise.all([ 
-          axios.get(`http://localhost:5000/api/rooms/${roomId}`, axiosConfig), 
-          axios.get(`http://localhost:5000/api/messages/${roomId}`, axiosConfig),
-        ]);
+        const roomRes = await axios.get(`http://localhost:5000/api/rooms/${roomId}`, axiosConfig);
         setRoom(roomRes.data);
-        setMessages(
-          messageRes.data.map((msg: MessageData) => ({ 
-            ...msg, 
-            roomId: roomId || "", 
-          }))
-        );
       } catch (err) {
-        setError("Failed to fetch room or messages.");
+        setError("Failed to fetch room.");
       }
       setLoading(false);
     };
 
     fetchRoomData();
-  }, [roomId, axiosConfig, setMessages]);
+  }, [roomId, axiosConfig]);
 
-  // Emit join-room once
+  // Emit join-room
   useEffect(() => {
     if (roomId && userId) {
       socket.emit("join-room", { roomId, userId });
     }
   }, [roomId, userId]);
 
-  // Handle chat-message once
+  // Handle chat history when joining room
+  useEffect(() => {
+    const handleChatHistory = (chatHistory: MessageData[]) => {
+      console.log("📜 Chat history received:", chatHistory);
+      setMessages(
+        chatHistory.map((msg) => ({
+          ...msg,
+          roomId: roomId || "",
+        }))
+      );
+    };
+
+    socket.on("chat-history", handleChatHistory);
+
+    return () => {
+      socket.off("chat-history", handleChatHistory);
+    };
+  }, [roomId, setMessages]);
+
+  // Handle new chat messages
   useEffect(() => {
     const handleNewMessage = (newMsg: MessageData) => {
       console.log("🔔 New message received via socket:", newMsg);
@@ -123,7 +133,7 @@ const Room: React.FC = () => {
     setMessage("");
   };
 
-  // Handle syncing video state when user joins the room
+  // Handle video sync state
   useEffect(() => {
     const handleVideoSync = ({
       currentTime,
@@ -168,11 +178,9 @@ const Room: React.FC = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // const isHost = userId === room?.hostId;
-
   return (
     <div className="room-container">
-      {room && (
+      {room ? (
         <div className="room-layout">
           <div className="video-section">
             <div className="video-header">
@@ -186,7 +194,7 @@ const Room: React.FC = () => {
             <VideoControl
               videoURL={room.videoUrl}
               roomId={room._id}
-              userId={userId || ""} 
+              userId={userId || ""}
             />
           </div>
 
@@ -244,6 +252,8 @@ const Room: React.FC = () => {
             <audio ref={audioRef} src={notificationSound} />
           </div>
         </div>
+      ) : (
+        <div className="loading">Loading room...</div>
       )}
       {error && <div className="error">{error}</div>}
     </div>

@@ -10,13 +10,10 @@ const router = express.Router();
 router.get("/:roomId", protect, asyncHandler(async (req, res) => {
   try {
     const roomId = req.params.roomId;
-
-    // Validate roomId exists (optional, assuming a Room model exists)
-    // You could also fetch the Room model here if necessary
+    console.log("📩 Fetching messages for:", req.params.roomId);
 
     const messages = await Message.find({ roomId }).sort({ createdAt: 1 });
 
-    // If no messages found
     if (messages.length === 0) {
       return res.status(404).json({ success: false, message: 'No messages found' });
     }

@@ -5,6 +5,9 @@ import asyncHandler from "../utils/asyncHandler";
 
 const router = express.Router();
 
+// Regex to validate YouTube URL
+const youtubeUrlRegex = /^(https?\:\/\/)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)\/(watch\?v=|embed\/|v\/|.+\/videoseries\?v=)([a-zA-Z0-9_-]{11})$/;
+
 // Create a new room
 router.post(
   "/create",
@@ -15,6 +18,11 @@ router.post(
     // Make sure that hostId and videoUrl are provided
     if (!hostId || !videoUrl) {
       return res.status(400).json({ error: "Host ID and Video URL are required" });
+    }
+
+    // Validate YouTube URL
+    if (!youtubeUrlRegex.test(videoUrl)) {
+      return res.status(400).json({ error: "Invalid YouTube URL" });
     }
 
     const newRoom = new Room({ hostId, videoUrl, users: [hostId] });
@@ -103,7 +111,5 @@ router.post('/:id/leave',
     }
   })
 );
-
-
 
 export default router;

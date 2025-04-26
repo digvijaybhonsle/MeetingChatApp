@@ -33,28 +33,39 @@ export const initSocket = (server: any) => {
     console.log(`🔌 Connected: ${socket.id}`);
 
     socket.on("join-room", async ({ roomId, userId }) => {
-      socket.join(roomId);
-      socketToUser[socket.id] = userId;
+      try {
+        socket.join(roomId);
+        socketToUser[socket.id] = userId;
 
-      const roomState = getRoomUsers(roomId);
-      socket.emit("video:sync", roomState);
+        if (!roomUsers[roomId]) {
+          roomUsers[roomId] = new Set();
+        }
+        roomUsers[roomId].add(userId);
 
-      if (!roomUsers[roomId]) roomUsers[roomId] = new Set();
-      roomUsers[roomId].add(userId);
+        console.log(`👥 ${userId} joined room: ${roomId}`);
 
-      console.log(`👥 ${userId} joined room: ${roomId}`);
+        // Emit current user list to everyone in the room
+        io.to(roomId).emit("room-users", {
+          count: roomUsers[roomId].size,
+          users: Array.from(roomUsers[roomId]),
+        });
 
-      const latestState = await VideoState.findOne({ roomId }).sort({ createdAt: -1 });
-      if (latestState) socket.emit("video-sync", latestState);
+        // Emit latest video sync state to the newly joined user
+        const latestState = await VideoState.findOne({ roomId }).sort({ createdAt: -1 });
+        if (latestState) {
+          socket.emit("video:sync", latestState);
+        }
 
-      const messages = await Message.find({ roomId }).sort({ createdAt: 1 });
-      socket.emit("chat-history", messages);
+        // Send chat history to the new user
+        const messages = await Message.find({ roomId }).sort({ createdAt: 1 });
+        socket.emit("chat-history", messages);
 
-      io.to(roomId).emit("room-users", {
-        count: roomUsers[roomId].size,
-        users: Array.from(roomUsers[roomId]),
-      });
+      } catch (err) {
+        console.error("❌ Error during join-room:", err);
+        socket.emit("error", { message: "Failed to join room." });
+      }
     });
+    
 
     socket.on("chat-message", async ({ roomId, message }) => {
       const { sender, senderName, content } = message;

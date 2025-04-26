@@ -96,6 +96,7 @@ html, body {
 /* Room Lists */
 .rooms-list {
   margin-top: 30px;
+  flex-direction: column;
 }
 
 .rooms-list h3 {
