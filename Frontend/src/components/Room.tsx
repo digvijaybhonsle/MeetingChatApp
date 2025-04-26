@@ -40,6 +40,7 @@ const Room: React.FC = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const token = localStorage.getItem("token");
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const axiosConfig = useMemo(
     () => ({
@@ -60,7 +61,7 @@ const Room: React.FC = () => {
     const fetchRoomData = async () => {
       setLoading(true);
       try {
-        const roomRes = await axios.get(`http://localhost:5000/api/rooms/${roomId}`, axiosConfig);
+        const roomRes = await axios.get(`${apiUrl}/api/rooms/${roomId}`, axiosConfig);
         setRoom(roomRes.data);
       } catch (err) {
         setError("Failed to fetch room.");
@@ -162,7 +163,7 @@ const Room: React.FC = () => {
 
     axios
       .post(
-        `http://localhost:5000/api/rooms/${roomId}/leave`,
+        `${apiUrl}/api/rooms/${roomId}/leave`,
         { roomId, userId },
         axiosConfig
       )

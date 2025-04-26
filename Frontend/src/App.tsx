@@ -7,7 +7,9 @@ import RoomJoin from "./components/JoinRoom";
 import Room from "./components/Room";
 import NotificationProvider from "./components/NotificationProvider";
 
-const socket = io("http://localhost:5000");
+const apiUrl = import.meta.env.VITE_API_URL;
+
+const socket = io(`${apiUrl}`);
 
 function App() {
   useEffect(() => {

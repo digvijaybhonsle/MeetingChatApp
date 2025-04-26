@@ -1,7 +1,8 @@
 // socket/socket.ts
 import { io } from "socket.io-client";
+const apiUrl = import.meta.env.VITE_API_URL;
 
-const socket = io("http://localhost:5000", {
+const socket = io(`${apiUrl}`, {
   withCredentials: true,
   transports: ["websocket"], 
 });

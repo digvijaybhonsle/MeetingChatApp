@@ -22,6 +22,7 @@ const RoomJoin: React.FC = () => {
   const [searchResult, setSearchResult] = useState<Room | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const token = localStorage.getItem("token");
   const userId = localStorage.getItem("userId");
@@ -48,7 +49,7 @@ const RoomJoin: React.FC = () => {
   useEffect(() => {
     if (!checkToken()) return;
 
-    const socket = io("http://localhost:5000", {
+    const socket = io(`${apiUrl}`, {
       query: { token }, // Pass token for socket authentication
     });
 
@@ -71,7 +72,7 @@ const RoomJoin: React.FC = () => {
 
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/rooms",
+        `${apiUrl}/api/rooms`,
         axiosConfig
       );
       setRooms(res.data);
@@ -105,7 +106,7 @@ const RoomJoin: React.FC = () => {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/rooms/create",
+        `${apiUrl}/api/rooms/create`,
         {
           hostId: userId,
           videoUrl: videoUrl.trim(),
@@ -138,7 +139,7 @@ const RoomJoin: React.FC = () => {
 
     try {
       await axios.post(
-        "http://localhost:5000/api/rooms/join",
+        `${apiUrl}/api/rooms/join`,
         { roomId: roomIdToJoin.trim(), userId },
         axiosConfig
       );
@@ -170,7 +171,7 @@ const RoomJoin: React.FC = () => {
 
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/rooms/${searchRoomId.trim()}`,
+        `${apiUrl}/api/rooms/${searchRoomId.trim()}`,
         axiosConfig
       );
       setSearchResult(res.data);

@@ -11,6 +11,7 @@ const Auth: React.FC = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +26,8 @@ const Auth: React.FC = () => {
 
     try {
       const url = isLogin
-        ? "http://localhost:5000/api/auth/signin"  
-        : "http://localhost:5000/api/auth/signup"; 
+        ? `${apiUrl}/api/auth/signin`  
+        : `${apiUrl}/api/auth/signup`; 
 
       // Prepare the payload
       const payload = {
