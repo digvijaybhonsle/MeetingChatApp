@@ -2,10 +2,13 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
       "composite": true,
-      "module": "ESNext",
+      "module": "ESNext",  // Vite works well with ESNext modules
       "moduleResolution": "Node",
       "allowSyntheticDefaultImports": true
     },
-    "include": ["vite.config.ts"]
+    "include": [
+      "src/**/*.ts",  // Include only frontend-related files
+      "vite.config.ts"
+    ]
   }
   
