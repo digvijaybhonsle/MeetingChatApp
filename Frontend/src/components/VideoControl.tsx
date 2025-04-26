@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useRef, useState } from "react";
 import socket from "../socket/index";
-import "./css/VideoControl.css";
+import "./css/videoControl.css";
 
 // Extend the Window interface to include onYouTubeIframeAPIReady
 declare global {
