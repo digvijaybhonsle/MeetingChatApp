@@ -9,7 +9,7 @@ const isRoomCreator = async (req: Request, res: Response, next: NextFunction) =>
       return res.status(404).json({ error: "Room not found" });
     }
     
-    if (room.hostId.toString() !== req.user._id.toString()) {
+    if (!req.user || room.hostId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "Not authorized to access this room" });
     }
     
