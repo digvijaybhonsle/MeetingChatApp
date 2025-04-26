@@ -26,10 +26,22 @@ const app = express();
 const server = http.createServer(app);
 
 // Middleware
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://meeting-chat-app.vercel.app"
+];
+
 app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
 }));
+
 app.use(express.json());
 
 // MongoDB Connection

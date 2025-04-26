@@ -23,7 +23,10 @@ const socketToUser: { [socketId: string]: string } = {};
 export const initSocket = (server: any) => {
   io = new Server(server, {
     cors: {
-      origin: "http://localhost:5173",
+      origin: [
+        "http://localhost:5173",
+        "https://meeting-chat-app.vercel.app"
+      ],
       methods: ["GET", "POST"],
       credentials: true,
     },
