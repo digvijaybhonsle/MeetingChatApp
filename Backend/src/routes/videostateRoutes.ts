@@ -1,8 +1,8 @@
 import express from 'express';
-import VideoState from '../models/videoState';
-import { protect } from '../middleware/authmiddleware';
-import { Room } from '../models/room';  
-import asyncHandler from '../utils/asyncHandler';
+import VideoState from '../models/videoState.js';
+import { protect } from '../middleware/authmiddleware.js';
+import { Room } from '../models/room.js';  
+import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
 

@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
-import User from "../models/user";
-import hashPassword from "../utils/hashPassword";
-import generateToken from "../utils/generateToken";
+import User from "../models/user.js";
+import hashPassword from "../utils/hashPassword.js";
+import generateToken from "../utils/generateToken.js";
 
 dotenv.config();
 

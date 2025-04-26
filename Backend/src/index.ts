@@ -5,19 +5,19 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 // Routes
-import roomRoutes from "./routes/roomRoutes";
-import authRoutes from "./routes/authRoutes";
-import userRoutes from "./routes/userRoutes";
-import messageRoutes from "./routes/messageRoutes";
-import videoStateRoutes from "./routes/videostateRoutes";
-import notificationRoutes from "./routes/notificationRoutes";
+import roomRoutes from "./routes/roomRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
+import videoStateRoutes from "./routes/videostateRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 // Middleware
-import { protect } from "./middleware/authmiddleware";
-import errorHandler from "./utils/errorHandler";
+import { protect } from "./middleware/authmiddleware.js";
+import errorHandler from "./utils/errorHandler.js";
 
 // Socket Initialization
-import { initSocket } from "./sockets/index";
+import { initSocket } from "./sockets/index.js";
 
 // Load environment variables
 dotenv.config();

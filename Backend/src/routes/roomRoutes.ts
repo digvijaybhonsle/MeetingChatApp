@@ -1,7 +1,7 @@
 import express from "express";
-import { Room } from "../models/room";
-import { protect } from "../middleware/authmiddleware";
-import asyncHandler from "../utils/asyncHandler";
+import { Room } from "../models/room.js";
+import { protect } from "../middleware/authmiddleware.js";
+import asyncHandler from "../utils/asyncHandler.js";
 
 const router = express.Router();
 

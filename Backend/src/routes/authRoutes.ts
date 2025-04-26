@@ -1,9 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
-import User from "../models/user";
-import generateToken from "../utils/generateToken";
-import asyncHandler from "../utils/asyncHandler";
+import User from "../models/user.js";
+import generateToken from "../utils/generateToken.js";
+import asyncHandler from "../utils/asyncHandler.js";
 
 dotenv.config();
 

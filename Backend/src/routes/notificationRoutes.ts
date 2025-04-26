@@ -1,8 +1,8 @@
 // routes/notificationRoutes.ts
 import express from 'express';
-import Notification from '../models/notification';
-import { protect } from '../middleware/authmiddleware';
-import asyncHandler from '../utils/asyncHandler';
+import Notification from '../models/notification.js';
+import { protect } from '../middleware/authmiddleware.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
 

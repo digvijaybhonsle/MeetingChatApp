@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { Room } from "../models/room";  // Assuming you have a Room model
+import { Room } from "../models/room.js";  // Assuming you have a Room model
 
 const isRoomCreator = async (req: Request, res: Response, next: NextFunction) => {
   try {

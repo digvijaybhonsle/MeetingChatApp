@@ -1,8 +1,8 @@
 import express from 'express';
-import Message from '../models/message'; 
-import { protect } from '../middleware/authmiddleware';
-import asyncHandler from '../utils/asyncHandler';
-import User from '../models/user';  // Import the User model
+import Message from '../models/message.js'; 
+import { protect } from '../middleware/authmiddleware.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import User from '../models/user.js';  // Import the User model
 
 const router = express.Router();
 

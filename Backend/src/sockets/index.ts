@@ -1,9 +1,9 @@
 import { Server, Socket } from "socket.io";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
-import VideoState from "../models/videoState";
-import Message from "../models/message";
-import { Room } from "../models/room";
-import Notification from "../models/notification";
+import VideoState from "../models/videoState.js";
+import Message from "../models/message.js";
+import { Room } from "../models/room.js";
+import Notification from "../models/notification.js";
 
 let io: Server<DefaultEventsMap, DefaultEventsMap>;
 

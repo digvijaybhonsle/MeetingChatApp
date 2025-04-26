@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import VideoState from "../models/videoState";
+import VideoState from "../models/videoState.js";
 
 export const updateVideoState = async (req: Request, res: Response) => {
   try {

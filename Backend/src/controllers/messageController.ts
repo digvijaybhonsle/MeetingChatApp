@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import Message from "../models/message";
-import { getSocketInstance } from "../sockets/index";
+import Message from "../models/message.js";
+import { getSocketInstance } from "../sockets/index.js";
 
 // GET /api/messages/:id (roomId)
 export const getMessages = async (req: Request, res: Response) => {
