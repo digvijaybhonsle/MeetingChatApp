@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,49 +7,82 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const room_1 = require("../models/room");
-const router = express_1.default.Router();
-router.post("/create", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { hostId, videoUrl } = req.body;
-        const newRoom = new room_1.Room({ hostId, videoUrl, users: [hostId] });
-        yield newRoom.save();
-        res.status(201).json(newRoom);
+import express from "express";
+import { Room } from "../models/room";
+import { protect } from "../middleware/authmiddleware";
+import asyncHandler from "../utils/asyncHandler";
+const router = express.Router();
+// Regex to validate YouTube URL
+const youtubeUrlRegex = /^(https?\:\/\/)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)\/(watch\?v=|embed\/|v\/|.+\/videoseries\?v=)([a-zA-Z0-9_-]{11})$/;
+// Create a new room
+router.post("/create", protect, asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { hostId, videoUrl } = req.body;
+    // Make sure that hostId and videoUrl are provided
+    if (!hostId || !videoUrl) {
+        return res.status(400).json({ error: "Host ID and Video URL are required" });
     }
-    catch (error) {
-        res.status(500).json({ error: "Error creating room" });
+    // Validate YouTube URL
+    if (!youtubeUrlRegex.test(videoUrl)) {
+        return res.status(400).json({ error: "Invalid YouTube URL" });
     }
-}));
-router.post("/join", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const newRoom = new Room({ hostId, videoUrl, users: [hostId] });
+    // Save the room and return the newly created room
+    yield newRoom.save();
+    res.status(201).json(newRoom);
+})));
+// Join a room
+router.post("/join", protect, // Ensure the user is authenticated before joining a room
+asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { roomId, userId } = req.body;
+    // Find the room by ID
+    const room = yield Room.findById(roomId);
+    if (!room) {
+        return res.status(404).json({ error: "Room not found" });
+    }
+    // Add the user to the room if not already present
+    if (!room.users.includes(userId)) {
+        room.users.push(userId);
+        yield room.save();
+    }
+    res.status(200).json(room);
+})));
+// Get a room by ID
+router.get("/:roomId", asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const room = yield Room.findById(req.params.roomId).populate("users");
+    if (!room) {
+        return res.status(404).json({ error: "Room not found" });
+    }
+    res.status(200).json(room); // Return the room with populated users
+})));
+// Get all rooms
+router.get("/", asyncHandler((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const rooms = yield Room.find();
+    res.status(200).json(rooms); // Return all rooms
+})));
+// Leave a room
+router.post('/:id/leave', protect, asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const roomId = req.params.id;
+    const { userId } = req.body;
     try {
-        const { roomId, userId } = req.body;
-        const room = yield room_1.Room.findById(roomId);
-        if (!room)
+        // Find the room
+        const room = yield Room.findById(roomId);
+        if (!room) {
             return res.status(404).json({ error: "Room not found" });
-        if (!room.users.includes(userId)) {
-            room.users.push(userId);
-            yield room.save();
         }
-        res.json(room);
+        // Ensure the room has users and that the user is part of it
+        if (!room.users || !room.users.includes(userId)) {
+            return res.status(400).json({ error: "User is not part of this room" });
+        }
+        // Remove the user from the room's users array
+        room.users = room.users.filter((participantId) => !participantId.equals(userId));
+        // Save the room data after removing the user
+        yield room.save();
+        // Send a response indicating the user has successfully left
+        res.status(200).json({ message: "User left the room successfully" });
     }
     catch (error) {
-        res.status(500).json({ error: "Error joining room" });
+        console.error(error);
+        res.status(500).json({ error: "Failed to leave the room" });
     }
-}));
-router.get("/:roomId", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const room = yield room_1.Room.findById(req.params.roomId).populate("users");
-        if (!room)
-            return res.status(404).json({ error: "Room not found" });
-        res.json(room);
-    }
-    catch (error) {
-        res.status(500).json({ error: "Error fetching room" });
-    }
-}));
-exports.default = router;
+})));
+export default router;

@@ -1,47 +1,58 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const http_1 = __importDefault(require("http"));
-const socket_io_1 = require("socket.io");
-const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const roomRoutes_1 = __importDefault(require("./routes/roomRoutes"));
-dotenv_1.default.config();
-const app = (0, express_1.default)();
-const server = http_1.default.createServer(app); // HTTP server
-const io = new socket_io_1.Server(server, {
-    cors: { origin: "http://localhost:5173", credentials: true },
+import express from "express";
+import http from "http";
+import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+// Routes
+import roomRoutes from "./routes/roomRoutes";
+import authRoutes from "./routes/authRoutes";
+import userRoutes from "./routes/userRoutes";
+import messageRoutes from "./routes/messageRoutes";
+import videoStateRoutes from "./routes/videostateRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+// Middleware
+import { protect } from "./middleware/authmiddleware";
+import errorHandler from "./utils/errorHandler";
+// Socket Initialization
+import { initSocket } from "./sockets/index";
+// Load environment variables
+dotenv.config();
+const app = express();
+const server = http.createServer(app);
+// Middleware
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+}));
+app.use(express.json());
+// MongoDB Connection
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/video-chat";
+mongoose.connect(MONGO_URI)
+    .then(() => console.log("✅ MongoDB connected"))
+    .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
 });
-app.use((0, cors_1.default)());
-app.use(express_1.default.json());
-app.use("/api/rooms", roomRoutes_1.default);
-app.get("/", (req, res) => {
-    res.send("Backend is running...");
+// API Routes
+app.use("/api/rooms", protect, roomRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/messages", protect, messageRoutes); // 🔁 Chat History Endpoint
+app.use("/api/video-state", videoStateRoutes);
+app.use('/api/notifications', notificationRoutes);
+// Root route
+app.get("/", (_req, res) => {
+    res.send("✅ Backend is running...");
 });
-// WebSocket connection
-io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
-    // Join a Room
-    socket.on("join-room", (roomId) => {
-        socket.join(roomId);
-        console.log(`User joined room: ${roomId}`);
-    });
-    // Sync Video (Play, Pause, Seek)
-    socket.on("video-action", ({ roomId, action }) => {
-        socket.to(roomId).emit("video-action", action);
-    });
-    // Handle Chat Messages
-    socket.on("chat-message", ({ roomId, message }) => {
-        io.to(roomId).emit("chat-message", message);
-    });
-    // Handle Disconnection
-    socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
-    });
+// Error & 404
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: "Route not found" });
 });
-// Start the server
+app.use(errorHandler);
+// Init socket after all middleware
+initSocket(server);
+// Start server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
