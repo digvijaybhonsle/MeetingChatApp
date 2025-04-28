@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import socket from "../socket/index";
 import "./css/videoControl.css";
 import { videoStore } from "../lib/store/videoStore"; // Zustand store
@@ -17,11 +17,20 @@ interface VideoControlProps {
   userId: string;
 }
 
+const extractYouTubeVideoId = (url: string) => {
+  const regExp = /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[1].length === 11) ? match[1] : null;
+};
+
 const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
   const seekTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [isYouTube, setIsYouTube] = useState(false);
+  const [isClientReady, setIsClientReady] = useState(false);
 
   const {
     isPlaying,
@@ -49,13 +58,10 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
     toggleFullscreen: state.toggleFullscreen,
   }));
 
-  const isYouTube = videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
-
-  const extractYouTubeVideoId = (url: string) => {
-    const regExp = /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[1].length === 11) ? match[1] : null;
-  };
+  useEffect(() => {
+    setIsYouTube(videoURL.includes("youtube.com") || videoURL.includes("youtu.be"));
+    setIsClientReady(true); // Now safe to render based on client-only data
+  }, [videoURL]);
 
   useEffect(() => {
     const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
@@ -178,6 +184,10 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   };
 
   const renderVideoPlayer = () => {
+    if (!isClientReady) {
+      return <div style={{ height: 400, backgroundColor: "#000" }}>Loading...</div>;
+    }
+
     if (isYouTube) {
       return (
         <div id="yt-player-container">
@@ -192,7 +202,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   };
 
   useEffect(() => {
-    if (isYouTube) {
+    if (isYouTube && window && typeof window !== "undefined") {
       const playerScript = document.createElement("script");
       playerScript.src = "https://www.youtube.com/iframe_api";
       document.body.appendChild(playerScript);
