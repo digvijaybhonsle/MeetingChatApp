@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import socket from "../socket/index";
 import "./css/videoControl.css";
+import { videoStore } from "../lib/store/videoStore"; // Zustand store
 
-// Extend the Window interface to include onYouTubeIframeAPIReady
 declare global {
   interface Window {
     onYouTubeIframeAPIReady?: () => void;
@@ -20,17 +20,37 @@ interface VideoControlProps {
 const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const isSyncing = useRef(false);
   const seekTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const {
+    isPlaying,
+    currentTime,
+    duration,
+    volume,
+    isFullscreen,
+    setPlaying,
+    setPaused,
+    setCurrentTime,
+    setDuration,
+    setVolume,
+    toggleFullscreen
+  } = videoStore((state) => ({
+    isPlaying: state.isPlaying,
+    currentTime: state.currentTime,
+    duration: state.duration,
+    volume: state.volume,
+    isFullscreen: state.isFullscreen,
+    setPlaying: state.playVideo,
+    setPaused: state.pauseVideo,
+    setCurrentTime: state.updateCurrentTime,
+    setDuration: state.updateDuration,
+    setVolume: state.updateVolume,
+    toggleFullscreen: state.toggleFullscreen,
+  }));
+
   const isYouTube = videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
 
-  // Sync listener for video state (for both MP4 and YouTube)
   useEffect(() => {
     const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
       const video = videoRef.current;
@@ -43,10 +63,10 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
 
       if (state === "playing") {
         video.play();
-        setIsPlaying(true);
+        setPlaying();
       } else {
         video.pause();
-        setIsPlaying(false);
+        setPaused();
       }
 
       setTimeout(() => (isSyncing.current = false), 300);
@@ -56,23 +76,23 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
     return () => {
       socket.off("video:sync", handleSync);
     };
-  }, []);
+  }, [setPlaying, setPaused]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const updateTime = () => setCurrentTime(video.currentTime);
-    const updateDuration = () => setDuration(video.duration);
+    const updateDurationHandler = () => setDuration(video.duration);
 
     video.addEventListener("timeupdate", updateTime);
-    video.addEventListener("loadedmetadata", updateDuration);
+    video.addEventListener("loadedmetadata", updateDurationHandler);
 
     return () => {
       video.removeEventListener("timeupdate", updateTime);
-      video.removeEventListener("loadedmetadata", updateDuration);
+      video.removeEventListener("loadedmetadata", updateDurationHandler);
     };
-  }, []);
+  }, [setCurrentTime, setDuration]);
 
   const emitSync = (state: "playing" | "paused", time?: number) => {
     const video = videoRef.current;
@@ -91,7 +111,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
 
     if (video.paused) {
       await video.play();
-      setIsPlaying(true);
+      setPlaying();
       if (isYouTube) {
         socket.emit("video:play", { roomId, currentTime: video.currentTime });
       } else {
@@ -99,7 +119,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
       }
     } else {
       video.pause();
-      setIsPlaying(false);
+      setPaused();
       if (isYouTube) {
         socket.emit("video:pause", { roomId, currentTime: video.currentTime });
       } else {
@@ -126,6 +146,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
       } else {
         emitSync(video.paused ? "paused" : "playing", time);
       }
+      setCurrentTime(time);
     }, 300);
   };
 
@@ -147,7 +168,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
     } else {
       document.exitFullscreen?.();
     }
-    setIsFullscreen(!isFullscreen);
+    toggleFullscreen();
   };
 
   const renderVideoPlayer = () => {
@@ -166,14 +187,13 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
 
   useEffect(() => {
     if (isYouTube) {
-      // Initialize YouTube player
       const playerScript = document.createElement("script");
       playerScript.src = "https://www.youtube.com/iframe_api";
       document.body.appendChild(playerScript);
 
       window.onYouTubeIframeAPIReady = () => {
         new window.YT.Player("yt-player", {
-          videoId: videoURL.split("v=")[1],  // Extract video ID from URL
+          videoId: videoURL.split("v=")[1],
           events: {
             onStateChange: (event: any) => {
               const videoState = event.data === window.YT.PlayerState.PLAYING ? "playing" : "paused";
