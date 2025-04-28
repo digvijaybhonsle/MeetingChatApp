@@ -51,6 +51,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
 
   const isYouTube = videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
 
+  // Handle socket synchronization for play/pause and seeking
   useEffect(() => {
     const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
       const video = videoRef.current;
@@ -78,6 +79,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
     };
   }, [setPlaying, setPaused]);
 
+  // Sync time update with video
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -185,6 +187,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
     }
   };
 
+  // YouTube API integration
   useEffect(() => {
     if (isYouTube) {
       const playerScript = document.createElement("script");
