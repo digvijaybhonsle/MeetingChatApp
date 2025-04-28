@@ -214,7 +214,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
         {renderVideoPlayer()}
       </div>
       <div className="video-time">
-        Time: ${Math.floor(currentTime)} / ${Math.floor(duration)}
+        Time: {Math.floor(currentTime)} / {Math.floor(duration)}
       </div>
       <div className="video-controls">
         <button className="video-button" onClick={handlePlayPause}>
