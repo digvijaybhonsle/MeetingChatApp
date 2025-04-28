@@ -17,7 +17,7 @@ interface VideoControlProps {
   userId: string;
 }
 
-const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
+const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
@@ -49,17 +49,10 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
     toggleFullscreen: state.toggleFullscreen,
   }));
 
-  const isYouTube =
-    videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
+  const isYouTube = videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
 
   useEffect(() => {
-    const handleSync = ({
-      currentTime,
-      state,
-    }: {
-      currentTime: number;
-      state: "playing" | "paused";
-    }) => {
+    const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
       const video = videoRef.current;
       if (!video) return;
 
@@ -101,19 +94,16 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
     };
   }, [setCurrentTime, setDuration]);
 
-  const emitSync = React.useCallback(
-    (state: "playing" | "paused", time?: number) => {
-      const video = videoRef.current;
-      if (!video) return;
-      socket.emit("video:sync", {
-        roomId,
-        currentTime: time ?? video.currentTime,
-        state,
-        timestamp: Date.now(),
-      });
-    },
-    [roomId]
-  );
+  const emitSync = (state: "playing" | "paused", time?: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    socket.emit("video:sync", {
+      roomId,
+      currentTime: time ?? video.currentTime,
+      state,
+      timestamp: Date.now(),
+    });
+  };
 
   const handlePlayPause = async () => {
     const video = videoRef.current;
@@ -182,10 +172,6 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   };
 
   const renderVideoPlayer = () => {
-    if (!videoURL) {
-      return <div>Loading video...</div>; // or you can return null
-    }
-
     if (isYouTube) {
       return (
         <div id="yt-player-container">
@@ -194,12 +180,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
       );
     } else {
       return (
-        <video
-          ref={videoRef}
-          className="video-player"
-          src={videoURL}
-          controls={false}
-        />
+        <video ref={videoRef} className="video-player" src={videoURL} controls={false} />
       );
     }
   };
@@ -215,10 +196,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
           videoId: videoURL.split("v=")[1],
           events: {
             onStateChange: (event: any) => {
-              const videoState =
-                event.data === window.YT.PlayerState.PLAYING
-                  ? "playing"
-                  : "paused";
+              const videoState = event.data === window.YT.PlayerState.PLAYING ? "playing" : "paused";
               emitSync(videoState);
             },
             onReady: (event: any) => {
@@ -228,41 +206,47 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
         });
       };
     }
-  }, [videoURL, isYouTube, emitSync]);
+  }, [videoURL, isYouTube]);
 
   return (
     <div className="video-control">
-      <div ref={containerRef} className="video-container">
-        {videoURL ? renderVideoPlayer() : <div>Loading Video...</div>}
-      </div>
-      <div className="video-time">
-        {`Time: ${Math.floor(currentTime)} / ${Math.floor(duration)}`}
-      </div>
-      <div className="video-controls">
-        <button className="video-button" onClick={handlePlayPause}>
-          {isPlaying ? "Pause" : "Play"}
-        </button>
-        <input
-          type="range"
-          min="0"
-          max={duration}
-          value={currentTime}
-          onChange={handleSeek}
-          className="video-slider"
-        />
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={handleVolumeChange}
-          className="video-volume"
-        />
-        <button className="video-button" onClick={handleFullScreen}>
-          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-        </button>
-      </div>
+      {!videoURL || !roomId || !userId ? (
+        <div>Loading Video...</div>
+      ) : (
+        <>
+          <div ref={containerRef} className="video-container">
+            {renderVideoPlayer()}
+          </div>
+          <div className="video-time">
+            {`Time: ${Math.floor(currentTime)} / ${Math.floor(duration)}`}
+          </div>
+          <div className="video-controls">
+            <button className="video-button" onClick={handlePlayPause}>
+              {isPlaying ? "Pause" : "Play"}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max={duration}
+              value={currentTime}
+              onChange={handleSeek}
+              className="video-slider"
+            />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={handleVolumeChange}
+              className="video-volume"
+            />
+            <button className="video-button" onClick={handleFullScreen}>
+              {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
