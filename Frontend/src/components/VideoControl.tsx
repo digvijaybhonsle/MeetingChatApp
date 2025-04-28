@@ -17,7 +17,7 @@ interface VideoControlProps {
   userId: string;
 }
 
-const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId }) => {
+const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
@@ -34,7 +34,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
     setCurrentTime,
     setDuration,
     setVolume,
-    toggleFullscreen,
+    toggleFullscreen
   } = videoStore((state) => ({
     isPlaying: state.isPlaying,
     currentTime: state.currentTime,
@@ -51,7 +51,6 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
 
   const isYouTube = videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
 
-  // Handle socket synchronization for play/pause and seeking
   useEffect(() => {
     const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
       const video = videoRef.current;
@@ -79,7 +78,6 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
     };
   }, [setPlaying, setPaused]);
 
-  // Sync time update with video
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -187,7 +185,6 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
     }
   };
 
-  // YouTube API integration
   useEffect(() => {
     if (isYouTube) {
       const playerScript = document.createElement("script");
@@ -208,56 +205,42 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
           },
         });
       };
-
-      // Cleanup YouTube API script when component unmounts or URL changes
-      return () => {
-        const script = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
-        if (script) {
-          script.remove();
-        }
-      };
     }
   }, [videoURL, isYouTube]);
 
   return (
     <div className="video-control">
-      {!videoURL || !roomId || !userId ? (
-        <div>Loading Video...</div>
-      ) : (
-        <>
-          <div ref={containerRef} className="video-container">
-            {renderVideoPlayer()}
-          </div>
-          <div className="video-time">
-            {`Time: ${Math.floor(currentTime)} / ${Math.floor(duration)}`}
-          </div>
-          <div className="video-controls">
-            <button className="video-button" onClick={handlePlayPause}>
-              {isPlaying ? "Pause" : "Play"}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max={duration}
-              value={currentTime}
-              onChange={handleSeek}
-              className="video-slider"
-            />
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={handleVolumeChange}
-              className="video-volume"
-            />
-            <button className="video-button" onClick={handleFullScreen}>
-              {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-            </button>
-          </div>
-        </>
-      )}
+      <div ref={containerRef} className="video-container">
+        {renderVideoPlayer()}
+      </div>
+      <div className="video-time">
+        Time: ${Math.floor(currentTime)} / ${Math.floor(duration)}
+      </div>
+      <div className="video-controls">
+        <button className="video-button" onClick={handlePlayPause}>
+          {isPlaying ? "Pause" : "Play"}
+        </button>
+        <input
+          type="range"
+          min="0"
+          max={duration}
+          value={currentTime}
+          onChange={handleSeek}
+          className="video-slider"
+        />
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={volume}
+          onChange={handleVolumeChange}
+          className="video-volume"
+        />
+        <button className="video-button" onClick={handleFullScreen}>
+          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+        </button>
+      </div>
     </div>
   );
 };
