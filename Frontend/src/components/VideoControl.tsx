@@ -208,6 +208,14 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId, userId })
           },
         });
       };
+
+      // Cleanup YouTube API script when component unmounts or URL changes
+      return () => {
+        const script = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+        if (script) {
+          script.remove();
+        }
+      };
     }
   }, [videoURL, isYouTube]);
 
