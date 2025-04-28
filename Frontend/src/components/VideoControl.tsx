@@ -51,6 +51,12 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
 
   const isYouTube = videoURL.includes("youtube.com") || videoURL.includes("youtu.be");
 
+  const extractYouTubeVideoId = (url: string) => {
+    const regExp = /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[1].length === 11) ? match[1] : null;
+  };
+
   useEffect(() => {
     const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
       const video = videoRef.current;
@@ -192,8 +198,14 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
       document.body.appendChild(playerScript);
 
       window.onYouTubeIframeAPIReady = () => {
+        const videoId = extractYouTubeVideoId(videoURL);
+        if (!videoId) {
+          console.error("Invalid YouTube URL:", videoURL);
+          return;
+        }
+
         new window.YT.Player("yt-player", {
-          videoId: videoURL.split("v=")[1],
+          videoId,
           events: {
             onStateChange: (event: any) => {
               const videoState = event.data === window.YT.PlayerState.PLAYING ? "playing" : "paused";
