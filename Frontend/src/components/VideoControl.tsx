@@ -68,7 +68,11 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
       const video = videoRef.current;
       if (!video) return;
 
+      // Prevent sync if already syncing
+      if (isSyncing.current) return;
+
       isSyncing.current = true;
+
       if (Math.abs(video.currentTime - currentTime) > 0.5) {
         video.currentTime = currentTime;
       }
@@ -218,6 +222,9 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
           videoId,
           events: {
             onStateChange: (event: any) => {
+              // Prevent recursive updates
+              if (isSyncing.current) return;
+
               const videoState = event.data === window.YT.PlayerState.PLAYING ? "playing" : "paused";
               emitSync(videoState);
             },
