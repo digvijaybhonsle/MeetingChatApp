@@ -18,9 +18,10 @@ interface VideoControlProps {
 }
 
 const extractYouTubeVideoId = (url: string) => {
-  const regExp = /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const regExp =
+    /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
-  return (match && match[1].length === 11) ? match[1] : null;
+  return match && match[1].length === 11 ? match[1] : null;
 };
 
 const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
@@ -32,47 +33,42 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   const [isYouTube, setIsYouTube] = useState(false);
   const [isClientReady, setIsClientReady] = useState(false);
 
-  const {
-    isPlaying,
-    currentTime,
-    duration,
-    volume,
-    isFullscreen,
-    setPlaying,
-    setPaused,
-    setCurrentTime,
-    setDuration,
-    setVolume,
-    toggleFullscreen
-  } = videoStore((state) => ({
-    isPlaying: state.isPlaying,
-    currentTime: state.currentTime,
-    duration: state.duration,
-    volume: state.volume,
-    isFullscreen: state.isFullscreen,
-    setPlaying: state.playVideo,
-    setPaused: state.pauseVideo,
-    setCurrentTime: state.updateCurrentTime,
-    setDuration: state.updateDuration,
-    setVolume: state.updateVolume,
-    toggleFullscreen: state.toggleFullscreen,
-  }));
+  const isPlaying = videoStore((state) => state.isPlaying);
+  const currentTime = videoStore((state) => state.currentTime);
+  const duration = videoStore((state) => state.duration);
+  const volume = videoStore((state) => state.volume);
+  const isFullscreen = videoStore((state) => state.isFullscreen);
+
+  const setPlaying = videoStore((state) => state.playVideo);
+  const setPaused = videoStore((state) => state.pauseVideo);
+  const setCurrentTime = videoStore((state) => state.updateCurrentTime);
+  const setDuration = videoStore((state) => state.updateDuration);
+  const setVolume = videoStore((state) => state.updateVolume);
+  const toggleFullscreen = videoStore((state) => state.toggleFullscreen);
 
   useEffect(() => {
-    setIsYouTube(videoURL.includes("youtube.com") || videoURL.includes("youtu.be"));
+    setIsYouTube(
+      videoURL.includes("youtube.com") || videoURL.includes("youtu.be")
+    );
     setIsClientReady(true); // Now safe to render based on client-only data
   }, [videoURL]);
 
   useEffect(() => {
-    const handleSync = ({ currentTime, state }: { currentTime: number; state: "playing" | "paused" }) => {
+    const handleSync = ({
+      currentTime,
+      state,
+    }: {
+      currentTime: number;
+      state: "playing" | "paused";
+    }) => {
       const video = videoRef.current;
       if (!video) return;
 
-      // Prevent sync if already syncing
       if (isSyncing.current) return;
 
       isSyncing.current = true;
 
+      // Sync video time and state (play or pause)
       if (Math.abs(video.currentTime - currentTime) > 0.5) {
         video.currentTime = currentTime;
       }
@@ -85,7 +81,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
         setPaused();
       }
 
-      setTimeout(() => (isSyncing.current = false), 300);
+      setTimeout(() => (isSyncing.current = false), 300);  // Clear sync flag
     };
 
     socket.on("video:sync", handleSync);
@@ -113,6 +109,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
   const emitSync = (state: "playing" | "paused", time?: number) => {
     const video = videoRef.current;
     if (!video) return;
+
     socket.emit("video:sync", {
       roomId,
       currentTime: time ?? video.currentTime,
@@ -125,45 +122,35 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
     const video = videoRef.current;
     if (!video || isSyncing.current) return;
 
+    isSyncing.current = true;
     if (video.paused) {
       await video.play();
       setPlaying();
-      if (isYouTube) {
-        socket.emit("video:play", { roomId, currentTime: video.currentTime });
-      } else {
-        emitSync("playing");
-      }
+      emitSync("playing");  // Emit sync immediately after play
     } else {
       video.pause();
       setPaused();
-      if (isYouTube) {
-        socket.emit("video:pause", { roomId, currentTime: video.currentTime });
-      } else {
-        emitSync("paused");
-      }
+      emitSync("paused");  // Emit sync immediately after pause
     }
+
+    setTimeout(() => (isSyncing.current = false), 300);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
+
     if (seekTimeout.current) clearTimeout(seekTimeout.current);
 
     seekTimeout.current = setTimeout(() => {
       const video = videoRef.current;
       if (!video) return;
+
+      // Sync the video time and emit the seek event
       video.currentTime = time;
-      if (isYouTube) {
-        socket.emit("video:seek", {
-          roomId,
-          currentTime: time,
-          state: video.paused ? "paused" : "playing",
-          timestamp: Date.now(),
-        });
-      } else {
-        emitSync(video.paused ? "paused" : "playing", time);
-      }
-      setCurrentTime(time);
-    }, 300);
+
+      emitSync(video.paused ? "paused" : "playing", time); // Emit the new seek time
+      setCurrentTime(time);  // Update currentTime immediately
+    }, 100);  // Shortened delay for better feedback
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +176,9 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
 
   const renderVideoPlayer = () => {
     if (!isClientReady) {
-      return <div style={{ height: 400, backgroundColor: "#000" }}>Loading...</div>;
+      return (
+        <div style={{ height: 400, backgroundColor: "#000" }}>Loading...</div>
+      );
     }
 
     if (isYouTube) {
@@ -200,7 +189,12 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
       );
     } else {
       return (
-        <video ref={videoRef} className="video-player" src={videoURL} controls={false} />
+        <video
+          ref={videoRef}
+          className="video-player"
+          src={videoURL}
+          controls={false}
+        />
       );
     }
   };
@@ -225,7 +219,10 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
               // Prevent recursive updates
               if (isSyncing.current) return;
 
-              const videoState = event.data === window.YT.PlayerState.PLAYING ? "playing" : "paused";
+              const videoState =
+                event.data === window.YT.PlayerState.PLAYING
+                  ? "playing"
+                  : "paused";
               emitSync(videoState);
             },
             onReady: (event: any) => {
@@ -243,7 +240,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
         {renderVideoPlayer()}
       </div>
       <div className="video-time">
-        Time: {Math.floor(currentTime)} / {Math.floor(duration)}
+        {/* Time: {Math.floor(currentTime)} / {Math.floor(duration)} */}
       </div>
       <div className="video-controls">
         <button className="video-button" onClick={handlePlayPause}>
@@ -254,7 +251,7 @@ const VideoControl: React.FC<VideoControlProps> = ({ videoURL, roomId }) => {
           min="0"
           max={duration}
           value={currentTime}
-          onChange={handleSeek}
+          onInput={handleSeek}
           className="video-slider"
         />
         <input

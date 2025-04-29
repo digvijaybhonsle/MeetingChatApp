@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "start": "vite preview"
+    "start": "react-scripts start"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
